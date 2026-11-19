@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DODO IS / L'AURUM ERP — Корпоративная система персонала с разделением ролей (RBAC)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Nunito', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #eef1f5;
+      color: #0f172a;
+    }
+    /* Стили тёмного экрана трекера кухни KDS (один в один как в Dodo IS Tracker) */
+    .kds-dark-board {
+      background-color: #1c222b;
+      color: #ffffff;
+    }
+    .kds-empty-slot {
+      background-color: #29313c;
+      border-radius: 12px;
+      min-height: 210px;
+    }
+    .kds-ticket-yellow {
+      background-color: #f8e45c;
+      color: #111827;
+      border-radius: 12px;
+      min-height: 210px;
+    }
+    .kds-ticket-red {
+      background-color: #fca5a5;
+      color: #111827;
+      border-radius: 12px;
+      min-height: 210px;
+      border: 3px solid #dc2626;
+    }
+  </style>
+  <!-- Конфигурация Supabase (с ключом sb_publishable_Q8bp5yDcT3g-b0K7tnvbfw_RYFYDkMi) и ядро общей БД -->
+  <script src="./js/config.js"></script>
+  <script src="./js/core.js"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ВЕРХНЯЯ ПАНЕЛЬ DODO IS / ERP -->
+  <div class="bg-[#18181b] text-white text-xs py-2.5 px-4 border-b border-white/10">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <span class="px-2.5 py-0.5 rounded bg-[#FF6900] text-white font-black tracking-wide">
+          DODO IS · L'AURUM ERP
+        </span>
+        <span id="erp-db-badge" class="text-neutral-300 font-semibold">● Ключ sb_publishable_... подключён</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="button" id="open-sb-btn" class="text-amber-300 hover:underline font-bold">
+          ⚙️ Настроить Project URL Supabase
+        </button>
+        <a
+          href="../site-1-guest/index.html"
+          class="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-white font-bold transition"
+        >
+          ← Сайт №1: Клиентский сайт (для Гостей)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ШАПКА АВТОРИЗОВАННОГО СОТРУДНИКА (ПОКАЗЫВАЕТСЯ ТОЛЬКО ПОСЛЕ ВХОДА) -->
+  <header id="staff-top-bar" class="hidden sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-[#FF6900] text-white font-black text-base flex items-center justify-center">
+          IS
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="header-role-badge" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold"></span>
+            <span id="header-staff-name" class="font-black text-base text-slate-900"></span>
+          </div>
+          <span class="text-xs text-slate-500 font-semibold block">
+            🔒 Строгая изоляция ролей (Session[Permission]): доступен только интерфейс вашей должности
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          id="logout-staff-btn"
+          class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-xs transition"
+        >
+          🚪 Выйти / Сменить сотрудника
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ГЛАВНЫЙ КОНТЕЙНЕР -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+
+    <!-- ЭКРАН 0: КОРПОРАТИВНАЯ АВТОРИЗАЦИЯ DODO IS (ПОКА СОТРУДНИК НЕ ВОШЁЛ) -->
+    <section id="auth-gate-screen" class="hidden py-6">
+      <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- КАРТОЧКА ВХОДА СОТРУДНИКА ПО ЛОГИНУ И ПАРОЛЮ -->
+        <div class="lg:col-span-7 bg-white rounded-3xl p-7 border border-slate-200 shadow-md space-y-5">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-[#FF6900] text-white font-black text-xl flex items-center justify-center">
+              IS
+            </div>
+            <div>
+              <span class="text-xs font-extrabold uppercase tracking-wider text-[#FF6900]">Auth Service · Session[Permission]</span>
+              <h1 class="text-2xl font-black text-slate-900 leading-none">Вход в систему Dodo IS (L'AURUM)</h1>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-600 font-semibold leading-relaxed">
+            Каждый сотрудник после авторизации видит <b>только свой рабочий интерфейс</b>: Повар — экран кухни KDS, Официант — зал и посадка, Бухгалтер — учёт, поставки и маржу, Босс — панель менеджера смены и создание аккаунтов.
+          </p>
+
+          <form id="staff-login-form" class="space-y-3.5">
+            <div>
+              <label class="block text-xs font-extrabold text-slate-700 mb-1">Логин сотрудника *</label>
+              <input
+                type="text"
+                id="login-input"
+                required
+                placeholder="Введите логин (boss, buh, chef, povar, waiter)"
+                class="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-extrabold focus:outline-none focus:ring-2 focus:ring-[#FF6900]"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-extrabold text-slate-700 mb-1">Пароль *</label>
+              <input
+                type="password"
+                id="password-input"
+                required
+                value="123"
+                placeholder="Пароль"
+                class="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-extrabold focus:outline-none focus:ring-2 focus:ring-[#FF6900]"
+              />
+            </div>
+            <button
+              type="submit"
+              class="w-full py-3.5 rounded-2xl bg-[#FF6900] hover:bg-[#e55e00] text-white font-black text-sm shadow transition"
+            >
+              Войти в свой рабочий интерфейс
+            </button>
+          </form>
+
+          <!-- БЫСТРЫЙ ВХОД В 1 КЛИК ПО РОЛЯМ (ДЛЯ ДЕМОНСТРАЦИИ НА ЗАЩИТЕ) -->
+          <div class="pt-4 border-t border-slate-100 space-y-2.5">
+            <div class="text-xs font-extrabold text-slate-500">Быстрый вход для проверки изоляции каждой роли (пароль везде 123):</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button type="button" data-quick-login="chef" class="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-left transition">
+                <div class="font-black text-xs text-amber-950">👨‍🍳 Повар кухни (chef / 123)</div>
+                <div class="text-[11px] text-amber-800 mt-0.5">Видит ТОЛЬКО тёмный экран KDS Трекер и стоп-лист</div>
+              </button>
+              <button type="button" data-quick-login="waiter" class="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition">
+                <div class="font-black text-xs text-blue-950">🛎️ Официант зала (waiter / 123)</div>
+                <div class="text-[11px] text-blue-800 mt-0.5">Видит ТОЛЬКО карту зала, посадку по брони 50% и счета</div>
+              </button>
+              <button type="button" data-quick-login="buh" class="p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition">
+                <div class="font-black text-xs text-emerald-950">📊 Бухгалтер (buh / 123)</div>
+                <div class="text-[11px] text-emerald-800 mt-0.5">Видит ТОЛЬКО Приход, Расход, Поставки, Техкарты и ФОТ</div>
+              </button>
+              <button type="button" data-quick-login="boss" class="p-3 rounded-2xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-left transition">
+                <div class="font-black text-xs text-purple-950">👑 Босс / Менеджер смены (boss / 123)</div>
+                <div class="text-[11px] text-purple-800 mt-0.5">Менеджер смены Dodo IS, Заказы, Сотрудники, Устройства</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- КАРТОЧКА ПРИВЯЗКИ ЭКРАНА КУХНИ ПО 4-ЗНАЧНОМУ КОДУ (КАК НА СКРИНШОТЕ DODO IS "5 2 3 7") -->
+        <div class="lg:col-span-5 bg-white rounded-3xl p-7 border border-slate-200 shadow-md text-center space-y-4">
+          <div class="inline-flex items-center gap-2 font-black text-lg text-slate-900">
+            <span class="w-7 h-7 rounded-lg bg-[#FF6900] text-white text-xs flex items-center justify-center">🍕</span>
+            <span>DODO IS</span>
+          </div>
+
+          <div class="py-3">
+            <div class="text-5xl font-light tracking-[0.25em] text-black select-all">5237</div>
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed px-2">
+            Введите 4 цифры привязки экранного устройства кухни из раздела <span class="text-[#FF6900] font-bold">«Устройства»</span> у менеджера смены, чтобы открыть экран <b>KDS Трекера на кухне</b>.
+          </p>
+
+          <form id="device-code-form" class="space-y-3 pt-1">
+            <input
+              type="text"
+              id="device-code-input"
+              value="5237"
+              maxlength="4"
+              placeholder="5237"
+              class="w-full py-3 rounded-2xl bg-slate-100 text-center text-xl font-black tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-[#FF6900]"
+            />
+            <button
+              type="submit"
+              class="w-full py-3.5 rounded-xl bg-[#e8722a] hover:bg-[#d4611c] text-white font-bold text-sm transition"
+            >
+              Подключить экран KDS по коду 5237
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ЭКСТРЕННЫЕ СИГНАЛЫ (ДЛЯ РОЛЕЙ ЗАЛА, КУХНИ И БОССА) -->
+    <div id="live-alerts-bar" class="hidden space-y-2"></div>
+
+    <!-- РАБОЧИЙ ИНТЕРФЕЙС ТЕКУЩЕЙ РОЛИ СОТРУДНИКА -->
+    <div id="erp-view-container" class="hidden"></div>
+
+  </main>
+
+  <!-- МОДАЛЬНОЕ ОКНО: НАСТРОЙКА SUPABASE -->
+  <div id="sb-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 relative">
+      <button type="button" id="close-sb-modal" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 font-bold">✕</button>
+      <div class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+        ✓ Ваш ключ sb_publishable_Q8bp5yDcT3g-b0K7tnvbfw_RYFYDkMi уже встроен!
+      </div>
+      <h3 class="text-xl font-black text-slate-900">Укажите Project URL вашей общей базы Supabase</h3>
+      <form id="sb-form" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">1. Project URL (SUPABASE_URL) *</label>
+          <input type="text" id="sb-url" placeholder="https://ваш-id-проекта.supabase.co" class="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">2. Publishable Key (уже вставлен) *</label>
+          <input type="text" id="sb-key" value="sb_publishable_Q8bp5yDcT3g-b0K7tnvbfw_RYFYDkMi" class="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono" />
+        </div>
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm">
+          Подключить общую облачную базу Supabase
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="erp-toast-box" class="fixed bottom-5 right-5 z-50 space-y-2 max-w-sm w-full pointer-events-none"></div>
+
+  <script>
+    (function () {
+      const db = window.LaurumDB;
+      const { ROLE_INFO, DODO_ORDER_STATES, SUPPLIERS, fmt } = window.LAURUM_CONST;
+
+      // Подраздел внутри кабинета Босса (Менеджера смены Dodo IS)
+      let bossSubTab = "orders";
+
+      function toast(msg, isError) {
+        const box = document.getElementById("erp-toast-box");
+        const el = document.createElement("div");
+        el.className = `pointer-events-auto p-4 rounded-2xl shadow-lg font-extrabold text-xs text-white ${
+          isError ? "bg-rose-600" : "bg-slate-900"
+        }`;
+        el.textContent = msg;
+        box.appendChild(el);
+        setTimeout(() => el.remove(), 3600);
+      }
+
+      // =========================================================================
+      // 1. ИНТЕРФЕЙС ПОВАРА (ТОЛЬКО ТЁМНЫЙ ЭКРАН KDS TRACKER КАК В DODO IS + СТОП-ЛИСТ)
+      // =========================================================================
+      function renderCookInterface(box, staff) {
+        const activeItems = db.state.order_items.filter(
+          (i) => i.status === "accepted" || i.status === "cooking" || i.status === "ready"
+        );
+        const cooks = db.state.profiles.filter((p) => p.role === "cook");
+        const nowTime = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+
+        // Формируем 6 ячеек сетки KDS (как на скриншоте Dodo KDS Tracker)
+        const slots = [];
+        for (let idx = 0; idx < Math.max(6, activeItems.length); idx++) {
+          const it = activeItems[idx];
+          if (!it) {
+            slots.push(`<div class="kds-empty-slot"></div>`);
+            continue;
+          }
+          const elapsedSec = Math.max(5, Math.floor((Date.now() - new Date(it.started_at || it.created_at).getTime()) / 1000));
+          const mm = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
+          const ss = String(elapsedSec % 60).padStart(2, "0");
+          const isOverdue = elapsedSec > (it.norm_min || 15) * 60;
+
+          const nextState =
+            it.status === "accepted"
+              ? { st: "cooking", label: "▶ Начать готовить (В печь / Гриль)", bg: "bg-slate-900 text-white" }
+              : it.status === "cooking"
+              ? { st: "ready", label: "✓ Готово → На тепловую полку", bg: "bg-emerald-700 text-white" }
+              : { st: "served", label: "🍽️ Выдано официанту в зал", bg: "bg-blue-700 text-white" };
+
+          slots.push(`
+            <div class="${isOverdue ? "kds-ticket-red" : "kds-ticket-yellow"} p-4 flex flex-col justify-between shadow-lg">
+              <div>
+                <div class="flex items-start justify-between">
+                  <span class="text-5xl font-black leading-none tracking-tight">${it.order_num || "25"}</span>
+                  <div class="text-right font-black text-base leading-tight">
+                    <div>Стол ${it.table_id}</div>
+                    <div class="${isOverdue ? "text-rose-700 animate-pulse" : ""}">${mm}:${ss}</div>
+                  </div>
+                </div>
+
+                <div class="mt-3 flex items-start gap-2">
+                  <span class="w-4 h-4 rounded-full ${
+                    it.status === "ready" ? "bg-emerald-600" : it.status === "cooking" ? "bg-orange-600" : "bg-sky-600"
+                  } inline-block shrink-0 mt-1"></span>
+                  <div>
+                    <div class="font-black text-xl leading-snug">${it.title} ${it.qty > 1 ? `×${it.qty}` : ""}</div>
+                    <div class="text-xs font-extrabold uppercase opacity-75">
+                      Этап: ${DODO_ORDER_STATES[it.status]?.title || it.status} (норма ${it.norm_min} мин)
+                    </div>
+                  </div>
+                </div>
+
+                ${
+                  it.mods
+                    ? `<div class="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded border-2 border-red-600 bg-red-50 text-red-700 font-black text-xs">
+                        <span>⊖</span>
+                        <span>${it.mods}</span>
+                      </div>`
+                    : ""
+                }
+              </div>
+
+              <div class="pt-3 mt-3 border-t border-black/15">
+                <button
+                  type="button"
+                  data-kds-next="${it.id}"
+                  data-st="${nextState.st}"
+                  class="w-full py-2.5 rounded-xl font-black text-xs ${nextState.bg} hover:opacity-90 transition shadow"
+                >
+                  ${nextState.label}
+                </button>
+              </div>
+            </div>
+          `);
+        }
+
+        box.innerHTML = `
+          <div class="space-y-6">
+            <!-- ТЁМНЫЙ ЭКРАН ТРЕКЕРА КУХНИ KDS (КАК В ДОДО ПИЦЦЕ) -->
+            <div class="kds-dark-board rounded-3xl p-5 shadow-2xl space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${slots.join("")}
+              </div>
+
+              <!-- НИЖНЯЯ СТРОКА KDS ЭКРАНА -->
+              <div class="pt-2 flex flex-wrap items-center justify-between text-neutral-300 font-black text-base px-2">
+                <div>${activeItems.filter((i) => i.status === "accepted").length} в очереди · ${activeItems.filter((i) => i.status === "cooking").length} готовится</div>
+                <div class="text-xl text-white">${nowTime}</div>
+                <div class="flex items-center gap-3">
+                  <span>Цех: ${staff.station || "Раскатка / Горячий цех"}</span>
+                  <span class="px-2.5 py-1 rounded bg-white/10 text-xs">Код экрана: 5237</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ЛИЧНЫЙ KPI ПОВАРОВ И БЫСТРЫЙ СТОП-ЛИСТ КУХНИ -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 space-y-3">
+                <span class="text-xs font-extrabold uppercase text-[#FF6900]">Табло мотивации кухни</span>
+                <h3 class="text-lg font-black text-slate-900">Мой рейтинг и KPI смены</h3>
+                <div class="space-y-2.5">
+                  ${cooks
+                    .map((c) => {
+                      const revs = db.state.reviews.filter((r) => r.cook_id === c.id);
+                      const cmps = db.state.complaints.filter((x) => x.cook_id === c.id);
+                      const avg = revs.length ? (revs.reduce((s, r) => s + r.rating, 0) / revs.length).toFixed(1) : "5.0";
+                      return `
+                        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                          <div>
+                            <div class="font-black text-sm text-slate-900">👨‍🍳 ${c.full_name}</div>
+                            <div class="text-xs text-slate-500">Ставка: ${fmt(c.hourly_rate)}/ч</div>
+                          </div>
+                          <div class="text-right">
+                            <div class="font-black text-amber-500">★ ${avg} (${revs.length})</div>
+                            <div class="text-xs font-bold ${cmps.length ? "text-rose-600" : "text-emerald-600"}">Брак/возвраты: ${cmps.length}</div>
+                          </div>
+                        </div>`;
+                    })
+                    .join("")}
+                </div>
+              </div>
+
+              <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 space-y-3">
+                <span class="text-xs font-extrabold uppercase text-rose-600">Управление наличием блюд на кухне</span>
+                <h3 class="text-lg font-black text-slate-900">Быстрый Стоп-лист блюд (мгновенно скрывает блюдо у гостей)</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  ${db.state.dishes
+                    .map(
+                      (d) => `
+                    <button
+                      type="button"
+                      data-toggle-stock="${d.id}"
+                      class="p-3 rounded-2xl border text-left transition ${
+                        d.in_stock ? "bg-slate-50 border-slate-200" : "bg-rose-50 border-rose-300"
+                      }"
+                    >
+                      <div class="font-extrabold text-xs text-slate-900 truncate">${d.title}</div>
+                      <div class="text-[11px] font-black mt-1 ${d.in_stock ? "text-emerald-600" : "text-rose-600"}">
+                        ${d.in_stock ? "● В продаже" : "⛔ В СТОП-ЛИСТЕ"}
+                      </div>
+                    </button>`
+                    )
+                    .join("")}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // 2. ИНТЕРФЕЙС ОФИЦИАНТА И ХОСТЕС (ТОЛЬКО КАРТА ЗАЛА, ПОСАДКА БРОНЕЙ 50% И СЧЕТА)
+      // =========================================================================
+      function renderWaiterInterface(box) {
+        box.innerHTML = `
+          <div class="space-y-6">
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-extrabold uppercase text-blue-600">Терминал Официанта и Хостес</span>
+                  <h2 class="text-2xl font-black text-slate-900">Карта посадки гостей и зачёт предоплаты 50%</h2>
+                </div>
+                <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-extrabold">
+                  Посадка в зале ресторана
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                ${db.state.tables
+                  .map((t) => {
+                    const st = db.getTableLiveStatus(t.id);
+                    const zone = db.state.zones.find((z) => z.id === t.zone_id);
+                    return `
+                      <div class="p-4 rounded-2xl border-2 flex flex-col justify-between space-y-3 ${
+                        st.status === "occupied"
+                          ? "bg-amber-50 border-amber-400"
+                          : st.status === "reserved"
+                          ? "bg-blue-50 border-blue-400"
+                          : "bg-emerald-50/50 border-emerald-200"
+                      }">
+                        <div>
+                          <div class="flex items-center justify-between">
+                            <span class="font-black text-base text-slate-900">${t.label}</span>
+                            <span class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-white">${t.seats} мест</span>
+                          </div>
+                          <div class="text-xs text-slate-500 font-semibold">${zone ? zone.name : ""}</div>
+
+                          <div class="mt-2 text-xs">
+                            ${
+                              st.status === "occupied"
+                                ? `<div class="font-extrabold text-amber-900">Гость: ${st.order.guest_name}</div>
+                                   <div class="text-slate-600">Заказ №${st.order.number || st.order.code} · Чек: <b>${fmt(st.order.subtotal)}</b></div>
+                                   <div class="text-emerald-700 font-extrabold">Предоплата 50%: −${fmt(st.order.deposit_applied)}</div>
+                                   <div class="font-black text-slate-900 mt-1">К доплате: ${fmt(Math.max(0, st.order.total - st.order.paid_amount))}</div>`
+                                : st.status === "reserved"
+                                ? `<div class="font-extrabold text-blue-900">Бронь ${st.reservation.code}: ${st.reservation.guest_name}</div>
+                                   <div class="text-slate-600">${st.reservation.visit_date} в ${st.reservation.visit_time}</div>
+                                   <div class="text-emerald-700 font-extrabold">Оплачен депозит 50%: ${fmt(st.reservation.deposit_amount)}</div>`
+                                : `<div class="font-extrabold text-emerald-700">✓ Стол свободен</div>`
+                            }
+                          </div>
+                        </div>
+
+                        <div>
+                          ${
+                            st.status === "reserved"
+                              ? `<button type="button" data-seat-res="${st.reservation.id}" class="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs">
+                                  Посадить гостей (Зачесть 50%)
+                                </button>`
+                              : st.status === "occupied"
+                              ? `<button type="button" data-close-ord="${st.order.id}" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs">
+                                  Принять оплату и закрыть стол
+                                </button>`
+                              : ""
+                          }
+                        </div>
+                      </div>`;
+                  })
+                  .join("")}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // 3. ИНТЕРФЕЙС БУХГАЛТЕРА (ТОЛЬКО ПРИХОД, РАСХОД, ПОСТАВКИ, МАРЖА И СКЛАД)
+      // =========================================================================
+      function renderAccountantInterface(box) {
+        const fin = db.getAccountingSummary();
+        const staffList = db.state.profiles.filter((p) => p.role !== "guest");
+
+        box.innerHTML = `
+          <div class="space-y-6">
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-600">Финансовый и Складской Контур (ERP Бухгалтерия)</span>
+                <h1 class="text-2xl sm:text-3xl font-black text-slate-900">
+                  Приход, Расход («На что ушли деньги»), Поставки, Техкарты и Маржа
+                </h1>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="bg-white p-5 rounded-3xl border-2 border-emerald-500 shadow-xs space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold uppercase text-emerald-700">1. ОБЩИЙ ПРИХОД (ДОХОДЫ)</span>
+                  <span class="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">+ Касса</span>
+                </div>
+                <div class="text-2xl sm:text-3xl font-black text-slate-900">${fmt(fin.totalInflow)}</div>
+                <div class="text-xs text-slate-600 space-y-1 pt-2 border-t border-slate-100">
+                  <div class="flex justify-between"><span>• Оплата счетов в зале:</span><b>${fmt(fin.orderIncome)}</b></div>
+                  <div class="flex justify-between"><span>• Предоплаты броней (50%):</span><b>${fmt(fin.depositIncome)}</b></div>
+                  <div class="flex justify-between text-emerald-700"><span>• Удержанные депозиты (&lt;24ч):</span><b>${fmt(fin.forfeitIncome)}</b></div>
+                </div>
+              </div>
+
+              <div class="bg-white p-5 rounded-3xl border-2 border-amber-400 shadow-xs space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold uppercase text-amber-700">2. ВАЛОВАЯ МАРЖА И ФУДКОСТ</span>
+                  <span class="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 text-xs font-bold">Маржа ${fin.grossMarginPct}%</span>
+                </div>
+                <div class="text-2xl sm:text-3xl font-black text-slate-900">${fmt(fin.grossMargin)}</div>
+                <div class="text-xs text-slate-600 space-y-1 pt-2 border-t border-slate-100">
+                  <div class="flex justify-between"><span>• Себестоимость блюд (Техкарты):</span><b>${fmt(fin.cogsSales)}</b></div>
+                  <div class="flex justify-between"><span>• Food Cost % (норма до 35%):</span><b class="text-emerald-700">${fin.foodCostPct}%</b></div>
+                  <div class="flex justify-between text-rose-600"><span>• Списание брака (Сторно):</span><b>${fmt(fin.cogsSpoilage)}</b></div>
+                </div>
+              </div>
+
+              <div class="bg-white p-5 rounded-3xl border-2 border-rose-400 shadow-xs space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold uppercase text-rose-700">3. ОБЩИЙ РАСХОД (ВЫПЛАТЫ)</span>
+                  <span class="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-800 text-xs font-bold">− Затраты</span>
+                </div>
+                <div class="text-2xl sm:text-3xl font-black text-slate-900">${fmt(fin.totalOutflow)}</div>
+                <div class="text-xs text-slate-600 space-y-1 pt-2 border-t border-slate-100">
+                  <div class="flex justify-between"><span>• Закупки сырья (Поставки):</span><b>${fmt(fin.suppliesSpent)}</b></div>
+                  <div class="flex justify-between"><span>• Зарплата персонала (ФОТ):</span><b>${fmt(fin.payrollTotal)}</b></div>
+                  <div class="flex justify-between"><span>• Аренда, эквайринг, возвраты:</span><b>${fmt(fin.opexSpent)}</b></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-900 text-white p-5 rounded-3xl shadow-xs space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold uppercase text-amber-400">4. ОПЕРАЦИОННАЯ ПРИБЫЛЬ</span>
+                  <span class="px-2 py-0.5 rounded-lg bg-white/10 text-amber-300 text-xs font-bold">Итог P&L</span>
+                </div>
+                <div class="text-2xl sm:text-3xl font-black ${fin.netOperatingProfit >= 0 ? "text-emerald-400" : "text-rose-400"}">
+                  ${fmt(fin.netOperatingProfit)}
+                </div>
+                <div class="text-xs text-slate-300 space-y-1 pt-2 border-t border-white/10">
+                  <div class="text-[11px] text-slate-400">
+                    Приход (${fmt(fin.totalInflow)}) − Себестоимость (${fmt(fin.cogsSales)}) − ФОТ (${fmt(fin.payrollTotal)}) − OPEX (${fmt(fin.opexSpent)})
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ПОСТАВКИ -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <div>
+                  <span class="text-xs font-extrabold uppercase text-amber-600">Приёмка товара от поставщика</span>
+                  <h3 class="text-lg font-black text-slate-900">🚚 Оформить поставку на склад</h3>
+                </div>
+
+                <form id="supply-form" class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Поставщик *</label>
+                    <select id="sup-supplier" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold">
+                      ${SUPPLIERS.map((s) => `<option value="${s}">${s}</option>`).join("")}
+                    </select>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Ингредиент *</label>
+                      <select id="sup-ing" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold">
+                        ${db.state.ingredients.map((i) => `<option value="${i.id}" data-cost="${i.cost_per_unit}">${i.name} (${i.unit})</option>`).join("")}
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Накладная *</label>
+                      <input type="text" id="sup-inv" value="НКЛ-2026-084" required class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Количество *</label>
+                      <input type="number" id="sup-qty" value="5" min="1" step="0.5" required class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Цена за ед. (₸) *</label>
+                      <input type="number" id="sup-cost" value="11000" min="50" required class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                    </div>
+                  </div>
+                  <button type="submit" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow">
+                    + Принять поставку на склад и записать в расход
+                  </button>
+                </form>
+              </div>
+
+              <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-lg font-black text-slate-900">Журнал поставок сырья</h3>
+                  <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold">
+                    Итого поставок: ${fmt(fin.suppliesSpent)}
+                  </span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-slate-200 text-slate-500">
+                        <th class="py-2 px-2">Накладная</th>
+                        <th class="py-2 px-2">Поставщик</th>
+                        <th class="py-2 px-2">Продукт</th>
+                        <th class="py-2 px-2 text-right">Сумма</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      ${db.state.supplies
+                        .map(
+                          (s) => `
+                        <tr>
+                          <td class="py-2.5 px-2 font-bold">${s.invoice}</td>
+                          <td class="py-2.5 px-2">${s.supplier}</td>
+                          <td class="py-2.5 px-2 font-bold">${s.ingredient_name} (+${s.qty} ${s.unit})</td>
+                          <td class="py-2.5 px-2 text-right font-extrabold text-rose-600">−${fmt(s.total_cost)}</td>
+                        </tr>`
+                        )
+                        .join("")}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- НА ЧТО УШЛИ ДЕНЬГИ И ПРИХОД -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <h3 class="text-lg font-black text-slate-900">💸 На что ушли деньги (Все статьи расходов)</h3>
+                <form id="expense-form" class="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <select id="exp-cat" class="sm:col-span-3 p-2 rounded-xl bg-white border border-slate-200 text-xs font-bold">
+                    <option value="Аренда и коммунальные платежи">Аренда / Коммуналка</option>
+                    <option value="Хозтовары и инвентарь кухни">Хозтовары / Посуда</option>
+                    <option value="Маркетинг и реклама">Маркетинг</option>
+                    <option value="Прочие операционные расходы">Прочий расход</option>
+                  </select>
+                  <input type="text" id="exp-title" required placeholder="На что потрачено..." class="sm:col-span-4 p-2 rounded-xl bg-white border border-slate-200 text-xs" />
+                  <input type="text" id="exp-rec" required placeholder="Получатель" class="sm:col-span-2 p-2 rounded-xl bg-white border border-slate-200 text-xs" />
+                  <input type="number" id="exp-amt" required placeholder="Сумма ₸" min="100" class="sm:col-span-2 p-2 rounded-xl bg-white border border-slate-200 text-xs font-bold" />
+                  <button type="submit" class="sm:col-span-1 py-2 px-3 rounded-xl bg-rose-600 text-white font-bold text-xs">+</button>
+                </form>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-slate-200 text-slate-500">
+                        <th class="py-2 px-2">Категория</th>
+                        <th class="py-2 px-2">На что ушли деньги</th>
+                        <th class="py-2 px-2">Получатель</th>
+                        <th class="py-2 px-2 text-right">Сумма</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      ${db.state.expenses
+                        .map(
+                          (e) => `
+                        <tr>
+                          <td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-800 font-bold">${e.category}</span></td>
+                          <td class="py-2.5 px-2 font-medium text-slate-800">${e.title}</td>
+                          <td class="py-2.5 px-2 text-slate-500">${e.recipient}</td>
+                          <td class="py-2.5 px-2 text-right font-extrabold text-rose-600">−${fmt(e.amount)}</td>
+                        </tr>`
+                        )
+                        .join("")}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <h3 class="text-lg font-black text-slate-900">💰 Журнал Прихода (Чеки и Предоплаты 50%)</h3>
+                <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                  ${db.state.transactions
+                    .map(
+                      (t) => `
+                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                      <div>
+                        <div class="font-bold text-slate-900">${t.title}</div>
+                        <div class="text-slate-500 mt-0.5">${t.method}</div>
+                      </div>
+                      <div class="font-extrabold text-sm text-emerald-600 whitespace-nowrap">+${fmt(t.amount)}</div>
+                    </div>`
+                    )
+                    .join("")}
+                </div>
+              </div>
+            </div>
+
+            <!-- СЕБЕСТОИМОСТЬ И МАРЖА ПО ТЕХКАРТАМ -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+              <h3 class="text-lg font-black text-slate-900">📐 Себестоимость (Food Cost) и Маржа каждого блюда по техкартам</h3>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-slate-200 text-slate-500">
+                      <th class="py-2.5 px-2">Блюдо</th>
+                      <th class="py-2.5 px-2">Техкарта</th>
+                      <th class="py-2.5 px-2">Цена</th>
+                      <th class="py-2.5 px-2">Себестоимость</th>
+                      <th class="py-2.5 px-2">Food Cost %</th>
+                      <th class="py-2.5 px-2 text-right">Чистая Маржа</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    ${db.state.dishes
+                      .map((d) => {
+                        const cm = db.getDishCostAndMargin(d.id);
+                        return `
+                          <tr>
+                            <td class="py-2.5 px-2 font-extrabold text-slate-900">${d.title}</td>
+                            <td class="py-2.5 px-2 text-slate-600">
+                              ${cm.items.map((i) => `${i.name}: <b>${i.qty} ${i.unit}</b> (${fmt(i.lineCost)})`).join(" + ")}
+                            </td>
+                            <td class="py-2.5 px-2 font-bold">${fmt(cm.price)}</td>
+                            <td class="py-2.5 px-2 text-rose-700 font-bold">${fmt(cm.cost)}</td>
+                            <td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 font-bold">${cm.foodCostPct}%</span></td>
+                            <td class="py-2.5 px-2 text-right font-extrabold text-emerald-700">+${fmt(cm.margin)} (${cm.marginPct}%)</td>
+                          </tr>`;
+                      })
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- СКЛАД И ФОТ -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+                <h3 class="text-lg font-black text-slate-900">📦 Остатки продуктов на складе</h3>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-slate-200 text-slate-500">
+                        <th class="py-2 px-2">Ингредиент</th>
+                        <th class="py-2 px-2">Остаток</th>
+                        <th class="py-2 px-2 text-right">Стоимость запаса</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      ${db.state.ingredients
+                        .map(
+                          (i) => `
+                        <tr>
+                          <td class="py-2 px-2 font-bold">${i.name}</td>
+                          <td class="py-2 px-2 font-extrabold">${i.stock_qty} ${i.unit}</td>
+                          <td class="py-2 px-2 text-right font-bold">${fmt(i.stock_qty * i.cost_per_unit)}</td>
+                        </tr>`
+                        )
+                        .join("")}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="lg:col-span-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-lg font-black text-slate-900">👥 Зарплатная ведомость (ФОТ)</h3>
+                  <span class="px-3 py-1 rounded-full bg-slate-100 text-xs font-extrabold">Итого: ${fmt(fin.payrollTotal)}</span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-slate-200 text-slate-500">
+                        <th class="py-2 px-2">Сотрудник</th>
+                        <th class="py-2 px-2">Часы × Ставка</th>
+                        <th class="py-2 px-2 text-right">К выплате</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      ${staffList
+                        .map((st) => {
+                          const sh = db.state.shifts.find((x) => x.staff_id === st.id) || { hours: 8, bonus: 0, penalty: 0 };
+                          const totalPay = sh.hours * st.hourly_rate + (sh.bonus || 0) - (sh.penalty || 0);
+                          return `
+                            <tr>
+                              <td class="py-2.5 px-2 font-bold">${st.full_name}</td>
+                              <td class="py-2.5 px-2">${sh.hours} ч × ${fmt(st.hourly_rate)}</td>
+                              <td class="py-2.5 px-2 text-right font-extrabold">${fmt(totalPay)}</td>
+                            </tr>`;
+                        })
+                        .join("")}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("sup-ing")?.addEventListener("change", (e) => {
+          const opt = e.target.selectedOptions[0];
+          if (opt && opt.dataset.cost) document.getElementById("sup-cost").value = opt.dataset.cost;
+        });
+
+        document.getElementById("supply-form")?.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const sup = db.createSupply({
+            supplier: document.getElementById("sup-supplier").value,
+            ingredient_id: document.getElementById("sup-ing").value,
+            invoice: document.getElementById("sup-inv").value,
+            qty: document.getElementById("sup-qty").value,
+            unit_cost: document.getElementById("sup-cost").value
+          });
+          toast(`Поставка ${sup.invoice} проведена! Склад пополнен, расход ${fmt(sup.total_cost)} записан.`);
+          renderAll();
+        });
+
+        document.getElementById("expense-form")?.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const exp = db.addExpense({
+            category: document.getElementById("exp-cat").value,
+            title: document.getElementById("exp-title").value,
+            recipient: document.getElementById("exp-rec").value,
+            amount: document.getElementById("exp-amt").value
+          });
+          toast(`Расход «${exp.title}» (${fmt(exp.amount)}) записан!`);
+          renderAll();
+        });
+      }
+
+      // =========================================================================
+      // 4. ИНТЕРФЕЙС БОССА / МЕНЕДЖЕРА СМЕНЫ (КАК НА СКРИНШОТЕ SHIFTMANAGER.DODOPIZZA.RU)
+      // =========================================================================
+      function renderBossInterface(box) {
+        const staffMembers = db.state.profiles.filter((p) => p.role !== "guest");
+
+        box.innerHTML = `
+          <div class="space-y-6">
+            <!-- ЧЁРНАЯ НАВИГАЦИОННАЯ ПАНЕЛЬ МЕНЕДЖЕРА СМЕНЫ DODO IS -->
+            <div class="bg-[#222222] text-white rounded-2xl px-5 py-3 flex flex-wrap items-center justify-between gap-4 shadow">
+              <div class="flex flex-wrap items-center gap-6 text-sm font-bold">
+                <span class="text-white font-black flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-[#FF6900] inline-block"></span>
+                  Менеджер смены
+                </span>
+                <button type="button" data-boss-tab="orders" class="${bossSubTab === "orders" ? "text-[#FF6900] underline underline-offset-8" : "text-neutral-300 hover:text-white"}">
+                  Заказы (Статусы Dodo IS)
+                </button>
+                <button type="button" data-boss-tab="staff" class="${bossSubTab === "staff" ? "text-[#FF6900] underline underline-offset-8" : "text-neutral-300 hover:text-white"}">
+                  Сотрудники (Создание аккаунтов RBAC)
+                </button>
+                <button type="button" data-boss-tab="devices" class="${bossSubTab === "devices" ? "text-[#FF6900] underline underline-offset-8" : "text-neutral-300 hover:text-white"}">
+                  Устройства (Код 5237)
+                </button>
+                <button type="button" data-boss-tab="menu" class="${bossSubTab === "menu" ? "text-[#FF6900] underline underline-offset-8" : "text-neutral-300 hover:text-white"}">
+                  Меню и Брак
+                </button>
+                <button type="button" data-boss-tab="finance" class="${bossSubTab === "finance" ? "text-[#FF6900] underline underline-offset-8" : "text-neutral-300 hover:text-white"}">
+                  Финансы и Бухгалтерия
+                </button>
+              </div>
+              <button
+                type="button"
+                id="reset-demo-btn"
+                class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-neutral-200"
+              >
+                🔄 Сбросить демо-базу
+              </button>
+            </div>
+
+            <div id="boss-subview-box"></div>
+          </div>
+        `;
+
+        const subBox = document.getElementById("boss-subview-box");
+
+        if (bossSubTab === "orders") {
+          // Таблица заказов один в один как на скриншоте shiftmanager.dodopizza.ru/Managment/ShiftManagment/Orders
+          subBox.innerHTML = `
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 class="text-2xl font-black text-slate-900">Заказы смены (Dodo IS ShiftManager)</h2>
+                  <p class="text-xs text-slate-500 font-semibold">Статусы: Принят → Кухня → На тепловой полке → Заказ выполнен / Сторно</p>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b-2 border-slate-200 text-slate-600 font-extrabold">
+                      <th class="py-3 px-3">Номер</th>
+                      <th class="py-3 px-3">Принят</th>
+                      <th class="py-3 px-3">Стол и Гость</th>
+                      <th class="py-3 px-3">Состав заказа и этапы блюд</th>
+                      <th class="py-3 px-3">Сумма (Предоплата 50%)</th>
+                      <th class="py-3 px-3">Статус заказа</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200">
+                    ${db.state.orders
+                      .map((o) => {
+                        const items = db.state.order_items.filter((i) => i.order_id === o.id);
+                        const timeStr = new Date(o.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+                        return `
+                          <tr class="hover:bg-slate-50">
+                            <td class="py-3 px-3 font-black text-blue-600 text-sm">${o.code || o.number + "-1"}</td>
+                            <td class="py-3 px-3 font-semibold">${timeStr}</td>
+                            <td class="py-3 px-3">
+                              <div class="font-extrabold text-slate-900">Стол ${o.table_id}</div>
+                              <div class="text-slate-500">${o.guest_name}</div>
+                            </td>
+                            <td class="py-3 px-3 space-y-1">
+                              ${items
+                                .map(
+                                  (it) => `
+                                <div class="flex items-center gap-2">
+                                  <span class="px-2 py-0.5 rounded font-extrabold text-[11px] ${
+                                    it.status === "served"
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : it.status === "ready"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : it.status === "storno"
+                                      ? "bg-rose-100 text-rose-800"
+                                      : "bg-blue-100 text-blue-800"
+                                  }">
+                                    ${DODO_ORDER_STATES[it.status]?.title || it.status}
+                                  </span>
+                                  <span class="font-bold">${it.title} ×${it.qty}</span>
+                                  ${it.mods ? `<span class="text-rose-600 font-bold">(${it.mods})</span>` : ""}
+                                </div>`
+                                )
+                                .join("")}
+                            </td>
+                            <td class="py-3 px-3">
+                              <div class="font-extrabold text-slate-900">${fmt(o.subtotal)}</div>
+                              ${o.deposit_applied ? `<div class="text-emerald-700 font-bold">Депозит 50%: −${fmt(o.deposit_applied)}</div>` : ""}
+                            </td>
+                            <td class="py-3 px-3">
+                              <span class="px-2.5 py-1 rounded-full text-xs font-extrabold ${
+                                o.status === "paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+                              }">
+                                ${o.status === "paid" ? "Заказ выполнен" : "В работе (Открыт)"}
+                              </span>
+                            </td>
+                          </tr>`;
+                      })
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (bossSubTab === "staff") {
+          subBox.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <div>
+                  <span class="text-xs font-extrabold uppercase text-[#FF6900]">RBAC · Закрытая регистрация персонала</span>
+                  <h3 class="text-lg font-black text-slate-900">👤 Создать аккаунт сотрудника</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">
+                    Созданный сотрудник сможет войти по выданному логину и паролю и увидит <b>только интерфейс своей роли</b>.
+                  </p>
+                </div>
+
+                <form id="create-staff-form" class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">ФИО сотрудника *</label>
+                    <input type="text" id="st-name" required placeholder="Например: Нурлан Сагинтаев" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Роль (интерфейс) *</label>
+                      <select id="st-role" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold">
+                        <option value="cook">Повар (Только KDS Кухни)</option>
+                        <option value="waiter">Официант / Хостес (Только Зал)</option>
+                        <option value="accountant">Бухгалтер (Только Учёт и Склад)</option>
+                        <option value="boss">Менеджер смены / Босс</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Ставка в час (₸) *</label>
+                      <input type="number" id="st-rate" value="3500" required class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Логин для входа *</label>
+                      <input type="text" id="st-login" required placeholder="cook3" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1">Пароль *</label>
+                      <input type="text" id="st-pass" required value="123" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                    </div>
+                  </div>
+                  <button type="submit" class="w-full py-3 rounded-xl bg-[#FF6900] hover:bg-[#e55e00] text-white font-black text-xs shadow">
+                    + Создать аккаунт сотрудника в БД
+                  </button>
+                </form>
+              </div>
+
+              <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <h3 class="text-lg font-black text-slate-900">Действующие аккаунты сотрудников (проверка входа)</h3>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-slate-200 text-slate-500">
+                        <th class="py-2 px-2">Сотрудник</th>
+                        <th class="py-2 px-2">Доступный интерфейс</th>
+                        <th class="py-2 px-2">Логин / Пароль</th>
+                        <th class="py-2 px-2 text-right">Проверка</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      ${staffMembers
+                        .map(
+                          (s) => `
+                        <tr>
+                          <td class="py-2.5 px-2 font-bold">${s.full_name}</td>
+                          <td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded-lg font-bold ${ROLE_INFO[s.role]?.badge || ""}">${ROLE_INFO[s.role]?.title || s.role}</span></td>
+                          <td class="py-2.5 px-2 font-mono font-bold">${s.login} / ${s.password}</td>
+                          <td class="py-2.5 px-2 text-right">
+                            <button type="button" data-quick-login="${s.login}" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-bold">
+                              Войти как ${s.login} →
+                            </button>
+                          </td>
+                        </tr>`
+                        )
+                        .join("")}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          `;
+
+          document.getElementById("create-staff-form")?.addEventListener("submit", (e) => {
+            e.preventDefault();
+            try {
+              const st = db.createStaffByBoss({
+                full_name: document.getElementById("st-name").value,
+                role: document.getElementById("st-role").value,
+                hourly_rate: document.getElementById("st-rate").value,
+                login: document.getElementById("st-login").value,
+                password: document.getElementById("st-pass").value
+              });
+              toast(`Сотрудник ${st.full_name} (логин: ${st.login}) создан!`);
+              renderAll();
+            } catch (err) {
+              toast(err.message, true);
+            }
+          });
+        } else if (bossSubTab === "devices") {
+          subBox.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <span class="text-xs font-extrabold uppercase text-[#FF6900]">Auth & Devices Service (Схема Dodo IS)</span>
+                <h3 class="text-lg font-black text-slate-900">🖥️ Привязать экран KDS по 4 цифрам</h3>
+                <p class="text-xs text-slate-500">
+                  Как на вашей архитектурной схеме Dodo IS: экран на кухне генерирует 4-значный код (например <b>5237</b> или <b>9982</b>), а менеджер смены регистрирует его здесь.
+                </p>
+                <form id="add-device-form" class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">4-значный код с экрана *</label>
+                    <input type="text" id="dev-code" required maxlength="4" placeholder="5237" value="7741" class="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-base font-black tracking-widest" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Название экрана в цеху *</label>
+                    <input type="text" id="dev-name" required value="Экран KDS №2 — Холодный цех и Закуски" class="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                  </div>
+                  <button type="submit" class="w-full py-3 rounded-xl bg-[#FF6900] text-white font-black text-xs">
+                    + Зарегистрировать устройство (POST device_api/register_device)
+                  </button>
+                </form>
+              </div>
+
+              <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <h3 class="text-lg font-black text-slate-900">Зарегистрированные экраны ресторана</h3>
+                <div class="space-y-2.5">
+                  ${(db.state.devices || [])
+                    .map(
+                      (d) => `
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <div class="font-black text-sm text-slate-900">${d.name}</div>
+                        <div class="text-xs text-slate-500">Код привязки: <b class="text-[#FF6900]">${d.code}</b> · Статус: Активен</div>
+                      </div>
+                      <button type="button" data-open-device="${d.code}" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold">
+                        Открыть этот экран KDS →
+                      </button>
+                    </div>`
+                    )
+                    .join("")}
+                </div>
+              </div>
+            </div>
+          `;
+
+          document.getElementById("add-device-form")?.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const dev = db.registerNewDeviceByBoss(
+              document.getElementById("dev-code").value,
+              document.getElementById("dev-name").value
+            );
+            toast(`Экран «${dev.name}» привязан по коду ${dev.code}!`);
+            renderAll();
+          });
+        } else if (bossSubTab === "menu") {
+          subBox.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <h3 class="text-lg font-black text-slate-900">🍽️ Добавить новое блюдо в меню</h3>
+                <form id="create-dish-form" class="space-y-3">
+                  <input type="text" id="d-title" required placeholder="Название блюда" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                  <div class="grid grid-cols-2 gap-2">
+                    <select id="d-cat" class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold">
+                      ${db.state.categories.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
+                    </select>
+                    <input type="number" id="d-price" value="7800" required placeholder="Цена ₸" class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold" />
+                  </div>
+                  <input type="text" id="d-desc" placeholder="Описание и состав блюда" class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs" />
+                  <button type="submit" class="w-full py-3 rounded-xl bg-slate-900 text-white font-black text-xs">
+                    + Опубликовать блюдо на клиентском сайте
+                  </button>
+                </form>
+              </div>
+
+              <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <h3 class="text-lg font-black text-slate-900">🚨 Журнал рекламаций и возвратов по браку (Сторно)</h3>
+                <div class="space-y-3">
+                  ${db.state.complaints
+                    .map(
+                      (c) => `
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div class="flex items-center gap-3">
+                        <img src="${c.photo_url}" alt="Фото" class="w-14 h-14 rounded-xl object-cover border border-slate-300" />
+                        <div>
+                          <div class="font-black text-slate-900">${c.code} · Стол ${c.table_id}: «${c.dish_title}» (${fmt(c.amount)})</div>
+                          <div class="text-rose-700 font-bold">${c.reason}</div>
+                          <div class="text-slate-500">${c.description || ""}</div>
+                        </div>
+                      </div>
+                      <div>
+                        ${
+                          c.status === "open"
+                            ? `<div class="flex gap-2">
+                                <button type="button" data-res-cmp="${c.id}" data-act="refund" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-bold">Вернуть деньги</button>
+                                <button type="button" data-res-cmp="${c.id}" data-act="bonus" class="px-3 py-1.5 rounded-xl bg-amber-500 text-white font-bold">Бонусы +20%</button>
+                              </div>`
+                            : `<span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold">✓ ${c.resolution_note}</span>`
+                        }
+                      </div>
+                    </div>`
+                    )
+                    .join("")}
+                </div>
+              </div>
+            </div>
+          `;
+
+          document.getElementById("create-dish-form")?.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const d = db.createDish({
+              title: document.getElementById("d-title").value,
+              category_id: document.getElementById("d-cat").value,
+              price: document.getElementById("d-price").value,
+              description: document.getElementById("d-desc").value
+            });
+            toast(`Блюдо «${d.title}» добавлено в меню!`);
+            renderAll();
+          });
+        } else if (bossSubTab === "finance") {
+          renderAccountantInterface(subBox);
+        }
+
+        document.getElementById("reset-demo-btn")?.addEventListener("click", () => {
+          db.resetAllDemoData();
+          toast("Демо-данные восстановлены!");
+          renderAll();
+        });
+      }
+
+      // =========================================================================
+      // ГЛАВНЫЙ РЕНДЕР С ПРОВЕРКОЙ СЕССИИ И СТРОГОЙ ИЗОЛЯЦИЕЙ РОЛЕЙ
+      // =========================================================================
+      function renderAll() {
+        document.getElementById("erp-db-badge").textContent =
+          db.mode === "supabase"
+            ? "● Подключено к общей облачной БД Supabase (Live)"
+            : "● Ключ sb_publishable_... готов (укажите Project URL для облака)";
+
+        const staff = db.getLoggedInStaff();
+        const authGate = document.getElementById("auth-gate-screen");
+        const topBar = document.getElementById("staff-top-bar");
+        const alertsBar = document.getElementById("live-alerts-bar");
+        const viewBox = document.getElementById("erp-view-container");
+
+        // Если сотрудник не вошёл — показываем ТОЛЬКО экран входа Dodo IS (и код 5237)
+        if (!staff) {
+          authGate.classList.remove("hidden");
+          topBar.classList.add("hidden");
+          alertsBar.classList.add("hidden");
+          viewBox.classList.add("hidden");
+          return;
+        }
+
+        authGate.classList.add("hidden");
+        topBar.classList.remove("hidden");
+        viewBox.classList.remove("hidden");
+
+        const roleMeta = ROLE_INFO[staff.role] || { title: staff.role, badge: "bg-slate-200 text-slate-800" };
+        const badgeEl = document.getElementById("header-role-badge");
+        badgeEl.className = `px-2.5 py-0.5 rounded-full text-xs font-extrabold ${roleMeta.badge}`;
+        badgeEl.textContent = roleMeta.title;
+        document.getElementById("header-staff-name").textContent = `${staff.full_name} (логин: ${staff.login})`;
+
+        // Оповещения показываем только тем ролям, которым они положены
+        const openCmps = db.state.complaints.filter((c) => c.status === "open");
+        const openCalls = db.state.service_calls.filter((c) => c.status === "new");
+        const readyDishes = db.state.order_items.filter((i) => i.status === "ready");
+
+        if (staff.role === "waiter" || staff.role === "boss") {
+          alertsBar.classList.remove("hidden");
+          alertsBar.innerHTML = [
+            ...openCmps.map(
+              (c) => `
+              <div class="p-3.5 rounded-2xl bg-rose-600 text-white flex flex-wrap items-center justify-between gap-3 shadow">
+                <div class="text-xs sm:text-sm font-extrabold">
+                  🚨 ЖАЛОБА ГОСТЯ (${c.code}, Стол ${c.table_id}): «${c.dish_title}» — ${c.reason} (${fmt(c.amount)})
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" data-res-cmp="${c.id}" data-act="refund" class="px-3 py-1.5 rounded-xl bg-white text-rose-700 font-extrabold text-xs">
+                    Вернуть деньги (${fmt(c.amount)})
+                  </button>
+                  <button type="button" data-res-cmp="${c.id}" data-act="bonus" class="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-extrabold text-xs">
+                    Бонусы (+20%)
+                  </button>
+                </div>
+              </div>`
+            ),
+            ...openCalls.map(
+              (sc) => `
+              <div class="p-3 rounded-2xl bg-amber-100 border border-amber-300 text-amber-950 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-xs sm:text-sm font-extrabold">${sc.message}</div>
+                <button type="button" data-close-call="${sc.id}" class="px-3 py-1 rounded-xl bg-slate-900 text-white font-bold text-xs">
+                  Выполнено ✓
+                </button>
+              </div>`
+            ),
+            ...readyDishes.map(
+              (rd) => `
+              <div class="p-3 rounded-2xl bg-emerald-100 border border-emerald-300 text-emerald-950 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-xs sm:text-sm font-extrabold">🍽️ На тепловой полке готово: «${rd.title}» ×${rd.qty} — подать за Стол ${rd.table_id}</div>
+                <button type="button" data-kds-next="${rd.id}" data-st="served" class="px-3 py-1 rounded-xl bg-emerald-700 text-white font-bold text-xs">
+                  Подано гостю ✓
+                </button>
+              </div>`
+            )
+          ].join("");
+        } else {
+          alertsBar.classList.add("hidden");
+        }
+
+        // РЕНДЕРИМ ТОЛЬКО ИНТЕРФЕЙС РОЛИ ТЕКУЩЕГО СОТРУДНИКА!
+        if (staff.role === "cook") {
+          renderCookInterface(viewBox, staff);
+        } else if (staff.role === "waiter") {
+          renderWaiterInterface(viewBox, staff);
+        } else if (staff.role === "accountant") {
+          renderAccountantInterface(viewBox, staff);
+        } else {
+          renderBossInterface(viewBox, staff);
+        }
+      }
+
+      // ОБРАБОТЧИКИ ВХОДА И ВЫХОДА
+      document.getElementById("staff-login-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        try {
+          const st = db.loginStaff(
+            document.getElementById("login-input").value,
+            document.getElementById("password-input").value
+          );
+          toast(`Вы вошли как: ${st.full_name} (${ROLE_INFO[st.role]?.title || st.role})`);
+          renderAll();
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+
+      document.getElementById("device-code-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        try {
+          const { device } = db.loginByDeviceCode(document.getElementById("device-code-input").value);
+          toast(`Устройство «${device.name}» подключено по коду ${device.code}!`);
+          renderAll();
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+
+      document.getElementById("logout-staff-btn").addEventListener("click", () => {
+        db.logoutStaff();
+        toast("Вы вышли из системы. Выберите другого сотрудника для входа.");
+        renderAll();
+      });
+
+      document.getElementById("open-sb-btn").addEventListener("click", () => {
+        const creds = db.getSupabaseCredentials();
+        document.getElementById("sb-url").value = creds.url.includes("TODO") ? "" : creds.url;
+        document.getElementById("sb-key").value = creds.key;
+        document.getElementById("sb-modal").classList.remove("hidden");
+      });
+      document.getElementById("close-sb-modal").addEventListener("click", () => {
+        document.getElementById("sb-modal").classList.add("hidden");
+      });
+      document.getElementById("sb-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await db.saveSupabaseCredentials(document.getElementById("sb-url").value, document.getElementById("sb-key").value);
+        document.getElementById("sb-modal").classList.add("hidden");
+        toast("Облачная база данных Supabase подключена!");
+        renderAll();
+      });
+
+      document.body.addEventListener("click", (e) => {
+        const quickBtn = e.target.closest("[data-quick-login]");
+        if (quickBtn) {
+          try {
+            const st = db.loginStaff(quickBtn.dataset.quickLogin, "123");
+            toast(`Открыт персональный интерфейс: ${st.full_name} (${ROLE_INFO[st.role]?.title})`);
+            renderAll();
+          } catch (err) {
+            toast(err.message, true);
+          }
+          return;
+        }
+
+        const openDev = e.target.closest("[data-open-device]");
+        if (openDev) {
+          try {
+            const { device } = db.loginByDeviceCode(openDev.dataset.openDevice);
+            toast(`Переключено на экран KDS: ${device.name}`);
+            renderAll();
+          } catch (err) {
+            toast(err.message, true);
+          }
+          return;
+        }
+
+        const bossTabBtn = e.target.closest("[data-boss-tab]");
+        if (bossTabBtn) {
+          bossSubTab = bossTabBtn.dataset.bossTab;
+          renderAll();
+          return;
+        }
+
+        const kdsBtn = e.target.closest("[data-kds-next]");
+        if (kdsBtn) {
+          const it = db.advanceDishStatus(kdsBtn.dataset.kdsNext, kdsBtn.dataset.st);
+          if (it) {
+            toast(`Блюдо «${it.title}» (Стол ${it.table_id}) → ${DODO_ORDER_STATES[it.status]?.title || it.status}`);
+            renderAll();
+          }
+          return;
+        }
+
+        const seatBtn = e.target.closest("[data-seat-res]");
+        if (seatBtn) {
+          const ord = db.seatGuestsByReservation(seatBtn.dataset.seatRes);
+          if (ord) {
+            toast(`Гости посажены за Стол ${ord.table_id}! Предоплата 50% (${fmt(ord.deposit_applied)}) зачтена в счёт.`);
+            renderAll();
+          }
+          return;
+        }
+
+        const closeOrd = e.target.closest("[data-close-ord]");
+        if (closeOrd) {
+          const ord = db.state.orders.find((o) => o.id === closeOrd.dataset.closeOrd);
+          if (ord) {
+            const rem = Math.max(0, ord.total - ord.paid_amount);
+            db.payOrder({ orderId: ord.id, payAmount: rem, method: "Терминал официанта" });
+            toast(`Счёт стола ${ord.table_id} закрыт!`);
+            renderAll();
+          }
+          return;
+        }
+
+        const cmpBtn = e.target.closest("[data-res-cmp]");
+        if (cmpBtn) {
+          const cmp = db.resolveComplaint(cmpBtn.dataset.resCmp, cmpBtn.dataset.act);
+          if (cmp) {
+            toast(`Акт ${cmp.code} обработан: ${cmp.resolution_note}`);
+            renderAll();
+          }
+          return;
+        }
+
+        const callBtn = e.target.closest("[data-close-call]");
+        if (callBtn) {
+          db.closeServiceCall(callBtn.dataset.closeCall);
+          renderAll();
+          return;
+        }
+
+        const stockBtn = e.target.closest("[data-toggle-stock]");
+        if (stockBtn) {
+          const d = db.toggleDishStock(stockBtn.dataset.toggleStock);
+          if (d) {
+            toast(d.in_stock ? `«${d.title}» возвращено в продажу` : `«${d.title}» поставлено в СТОП-ЛИСТ`);
+            renderAll();
+          }
+        }
+      });
+
+      // Живой секундный таймер для KDS экрана повара
+      setInterval(() => {
+        const st = db.getLoggedInStaff();
+        if (st && st.role === "cook") {
+          renderAll();
+        }
+      }, 1000);
+
+      db.subscribe(renderAll);
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
