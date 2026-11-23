@@ -120,35 +120,43 @@
     const STAFF_ROLES = Object.fromEntries(Object.entries(ROLE_META).filter(([, m]) => m.staff));
     const fmt = window.fmtKZT;
 
-    // Строгое разграничение разделов и интерфейса по должности сотрудника
+    // Строгое разграничение разделов и личного интерфейса по должности сотрудника
     const ROLE_WORKSPACE = {
       admin: {
-        title: "Кабинет Управляющего (ERP • Финансы • Персонал • Меню)",
-        desc: "Полный доступ к аналитике P&L (День/Неделя/Месяц), выгрузке отчётов в Excel, фонду оплаты труда, складу, меню и контролю всех станций",
+        title: "Личный кабинет Управляющего (ERP • Аналитика • Бухгалтерия • Все станции)",
+        desc: "Полный доступ к аналитике продаж (День/Неделя/Месяц), бухгалтерскому балансу P&L, скачиванию отчётов в Excel, фонду зарплат, складу, меню и контролю всех станций",
         color: "from-emerald-900 to-stone-900",
         badge: "bg-emerald-500 text-white",
-        tabs: ["analytics", "kds", "pos", "courier", "menu", "inventory", "staff", "supabase"],
+        tabs: ["analytics", "accounting", "kds", "pos", "courier", "menu", "inventory", "staff", "supabase"],
         defaultTab: "analytics"
       },
+      accountant: {
+        title: "Личный кабинет Главного Бухгалтера (Бухгалтерия • Налоги • ЗП • Закупки)",
+        desc: "Бухгалтерский баланс P&L, расчёт налогов РК (ИПН/СН/КПН), ведомость зарплаты сотрудников (ФОТ), стоимость сырья на складе, аудит эквайринга и выгрузка в Excel",
+        color: "from-teal-900 to-stone-900",
+        badge: "bg-teal-400 text-stone-950",
+        tabs: ["accounting", "analytics", "inventory", "staff"],
+        defaultTab: "accounting"
+      },
       kitchen: {
-        title: "Рабочее место Повара и Шеф-ошпаза (Кухня KDS • Стоп-лист • Склад)",
-        desc: "Экран линии приготовления заказов с таймером SLA и чеклистом позиций, управление стоп-листом блюд и списание ингредиентов",
+        title: "Личный терминал Повара и Шеф-ошпаза (Кухня KDS • Стоп-лист • Склад)",
+        desc: "Экран линии приготовления заказов с таймером SLA и чеклистом позиций, управление стоп-листом блюд, списание ингредиентов и личный расчёт смен повара",
         color: "from-orange-900 to-stone-900",
         badge: "bg-orange-500 text-white",
         tabs: ["kds", "menu", "inventory"],
         defaultTab: "kds"
       },
       cashier: {
-        title: "Рабочее место Кассира зала (Терминал POS • Выдача в зале)",
-        desc: "Быстрый приём заказов в зале и на доставку, расчёт сдачи, табло выдачи готовых заказов гостям и актуальный стоп-лист",
+        title: "Личный терминал Кассира зала (Касса POS • Выдача в зале • Стоп-лист)",
+        desc: "Приём заказов в зале и на доставку, калькулятор сдачи, табло выдачи готовых заказов гостям, кассовая дисциплина и личный расчёт смен кассира",
         color: "from-amber-900 to-stone-900",
-        badge: "bg-amber-500 text-stone-950",
+        badge: "bg-amber-400 text-stone-950",
         tabs: ["pos", "menu"],
         defaultTab: "pos"
       },
       courier: {
-        title: "Мобильный терминал Курьера службы доставки",
-        desc: "Маршрутный лист готовых к отправке заказов, адреса и телефоны гостей, отметка выдачи и личный заработок за смену",
+        title: "Личный мобильный терминал Курьера службы доставки",
+        desc: "Маршрутный лист готовых к отправке заказов, адреса и телефоны гостей, отметка вручения и личный счётчик заработка курьера за каждый рейс",
         color: "from-indigo-900 to-stone-900",
         badge: "bg-indigo-500 text-white",
         tabs: ["courier"],
@@ -754,14 +762,15 @@
       const stoppedCount = state.products.filter((p) => !p.is_available).length;
 
       const allTabs = [
-        { id: "analytics", label: "📊 Аналитика и P&L отчёты" },
-        { id: "kds",       label: `👨‍🍳 Кухня (KDS) • ${kds.length}` },
-        { id: "pos",       label: `💳 Касса (POS) ${hallReady.length ? `• Готово: ${hallReady.length}` : ""}` },
-        { id: "courier",   label: `🚚 Доставка (Курьер) • ${courierQ.length}` },
-        { id: "menu",      label: `🍛 Меню и Стоп-лист (${state.products.length})` },
-        { id: "inventory", label: `📦 Склад и Закупки ${lowInvCount ? `(${lowInvCount}!)` : ""}` },
-        { id: "staff",     label: `👥 Персонал и Зарплаты (${state.staff.length})` },
-        { id: "supabase",  label: "☁️ Supabase" }
+        { id: "analytics",  label: "📊 Аналитика продаж и Топ блюд" },
+        { id: "accounting", label: "🧾 Бухгалтерия (P&L • ЗП • Налоги)" },
+        { id: "kds",        label: `👨‍🍳 Кухня (KDS) • ${kds.length}` },
+        { id: "pos",        label: `💳 Касса (POS) ${hallReady.length ? `• Готово: ${hallReady.length}` : ""}` },
+        { id: "courier",    label: `🚚 Доставка (Курьер) • ${courierQ.length}` },
+        { id: "menu",       label: `🍛 Меню и Стоп-лист (${state.products.length})` },
+        { id: "inventory",  label: `📦 Склад и Закупки ${lowInvCount ? `(${lowInvCount}!)` : ""}` },
+        { id: "staff",      label: `👥 Персонал и Зарплаты (${state.staff.length})` },
+        { id: "supabase",   label: "☁️ Supabase" }
       ];
 
       // Показываем ТОЛЬКО вкладки, относящиеся к выбранной роли сотрудника!
@@ -827,7 +836,9 @@
         </header>
 
         <main class="max-w-7xl mx-auto px-4 py-6 pb-24">
+          ${renderPersonalRoleCard(role)}
           ${state.staffTab === "analytics" ? renderAnalyticsTab() : ""}
+          ${state.staffTab === "accounting" ? renderAccountingTab() : ""}
           ${state.staffTab === "kds" ? renderKdsTab(kds, lowInvCount) : ""}
           ${state.staffTab === "pos" ? renderPosTab(hallReady) : ""}
           ${state.staffTab === "courier" ? renderCourierTab(courierQ, courierDelivered) : ""}
@@ -836,6 +847,228 @@
           ${state.staffTab === "staff" ? renderStaffPayrollTab() : ""}
           ${state.staffTab === "supabase" ? renderSupabaseTab() : ""}
         </main>
+      `;
+    }
+
+    // ==================== ЛИЧНЫЙ ИНТЕРФЕЙС / ПАСПОРТ СМЕНЫ КАЖДОЙ РОЛИ ====================
+    function renderPersonalRoleCard(role) {
+      const u = state.user || {};
+      const rate = Number(u.shiftRate || 15000);
+      const shifts = Number(u.shiftsWorked || 20);
+      const bonus = Number(u.bonusPay || 20000);
+      const totalSalary = rate * shifts + bonus;
+
+      const roleKpiMap = {
+        admin: {
+          icon: "👑",
+          duty: "Контроль выручки, чистой прибыли, закупок, стоп-листа и дисциплины всех смен",
+          kpiLabel: "Заказов в базе / Рентабельность",
+          kpiVal: `${state.orders.length} зак. • Маржа ${computeAnalytics(state.analyticsPeriod).marginPercent}%`
+        },
+        accountant: {
+          icon: "🧾",
+          duty: "Ведение бухгалтерского баланса (P&L), расчёт ЗП сотрудников, учёт себестоимости сырья и налогов РК",
+          kpiLabel: "Оборот за месяц / ФОТ штата",
+          kpiVal: `${fmt(computeAnalytics("month").revenue)} • ФОТ ${fmt(computeAnalytics("month").monthlyPayroll)}`
+        },
+        kitchen: {
+          icon: "👨‍🍳",
+          duty: "Приготовление блюд по чекам KDS в пределах норматива SLA (до 20 мин), контроль стоп-листа и остатков цеха",
+          kpiLabel: "Чеков на кухне KDS сейчас",
+          kpiVal: `${state.orders.filter((o) => ["new", "cooking", "ready"].includes(o.status)).length} активных чеков`
+        },
+        cashier: {
+          icon: "💳",
+          duty: "Приём оплаты на кассе POS (Kaspi QR / Наличные), выдача готовых заказов в зале со свободной посадкой",
+          kpiLabel: "Готово к выдаче в зале",
+          kpiVal: `${state.orders.filter((o) => o.type !== "delivery" && o.status === "ready").length} заказов ждут выдачи`
+        },
+        courier: {
+          icon: "🚚",
+          duty: "Экспедирование заказов из ресторана до двери гостя, проверка термосумки и приём оплаты при доставке",
+          kpiLabel: "Рейсов выполнено / Бонус за рейсы",
+          kpiVal: `${state.orders.filter((o) => o.type === "delivery" && o.status === "completed").length} рейсов (+${fmt(state.orders.filter((o) => o.type === "delivery" && o.status === "completed").length * 650)})`
+        }
+      };
+
+      const meta = roleKpiMap[role] || roleKpiMap.admin;
+
+      return `
+        <div class="bg-white rounded-3xl p-4 sm:p-5 shadow-sm border-2 border-stone-200/90 mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-start sm:items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center text-2xl shrink-0 shadow-sm">
+              ${meta.icon}
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-black text-base text-stone-900">Личный кабинет сотрудника: ${u.name || "Сотрудник"}</span>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-extrabold ${ROLE_META[role]?.badge || "bg-stone-200"}">
+                  ${ROLE_META[role]?.label || role}
+                </span>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">● На смене</span>
+              </div>
+              <div class="text-xs text-stone-500 mt-0.5">${meta.duty}</div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 text-xs">
+            <div class="px-3.5 py-2 rounded-2xl bg-stone-50 border border-stone-200">
+              <div class="text-[10px] text-stone-400 font-bold uppercase">${meta.kpiLabel}</div>
+              <div class="font-extrabold text-stone-900 mt-0.5">${meta.kpiVal}</div>
+            </div>
+            <div class="px-3.5 py-2 rounded-2xl bg-amber-50 border border-amber-200">
+              <div class="text-[10px] text-amber-800 font-bold uppercase">Личный расчёт ЗП (${shifts} смен × ${fmt(rate)} + премия)</div>
+              <div class="font-black text-amber-950 mt-0.5">${fmt(totalSalary)} / мес</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==================== БУХГАЛТЕРИЯ (БУХГАЛТЕРСКИЙ УЧЁТ, НАЛОГИ, ДДС, ЗП, СКЛАД) ====================
+    function renderAccountingTab() {
+      const a = computeAnalytics(state.analyticsPeriod);
+      const cardOrders = a.validOrders.filter((o) => o.paymentMethod !== "cash");
+      const cashOrders = a.validOrders.filter((o) => o.paymentMethod === "cash");
+      const cardRevenue = cardOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+      const cashRevenue = cashOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+
+      // Комиссия банковского эквайринга (Kaspi QR / Visa ~1.9%)
+      const acquiringFee = Math.round(cardRevenue * 0.019);
+      // Налог по упрощённой декларации РК (3% от оборота)
+      const simplifiedTax = Math.round(a.revenue * 0.03);
+      // Аренда и коммунальные (пропорционально периоду: 450 000 ₸ / мес)
+      const rentAndUtilities = a.period === "day" ? 15000 : a.period === "week" ? 105000 : 450000;
+      const ebitda = a.revenue - a.foodCostSpent - a.payrollCost - a.operatingCost - acquiringFee - rentAndUtilities - simplifiedTax;
+
+      return `
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-teal-300 mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span class="px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-900 text-[11px] font-extrabold">Бухгалтерский учёт РК • ДДС • P&L Баланс</span>
+            <h2 class="text-xl font-black mt-1">🧾 Бухгалтерия ресторана «ВОСТОК ХАУС» (${a.periodLabel})</h2>
+            <p class="text-xs text-stone-500">Полный бухгалтерский баланс доходов и расходов: эквайринг, налоги, аренда, себестоимость сырья и зарплатная ведомость</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex bg-stone-100 p-1 rounded-2xl text-xs font-extrabold">
+              ${[
+                { id: "day", label: "День" },
+                { id: "week", label: "Неделя" },
+                { id: "month", label: "Месяц" }
+              ].map((p) => `
+                <button type="button" data-aperiod="${p.id}" class="aperiod-btn px-3.5 py-2 rounded-xl transition ${state.analyticsPeriod === p.id ? "bg-teal-800 text-white shadow" : "text-stone-600 hover:text-stone-900"}">
+                  ${p.label}
+                </button>
+              `).join("")}
+            </div>
+            <button type="button" id="export-xls-btn" class="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow">
+              📥 Выгрузить бухгалтерский баланс в Excel (.xls)
+            </button>
+          </div>
+        </div>
+
+        <!-- Бухгалтерская книга доходов и статей расходов -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+          <div class="lg:col-span-7 bg-white rounded-3xl p-6 shadow-sm border border-stone-200/80">
+            <h3 class="font-extrabold text-base mb-4">📑 Бухгалтерский отчёт о прибылях и убытках (Статьи ДДС)</h3>
+            <table class="w-full text-xs text-left">
+              <thead class="text-stone-500 border-b">
+                <tr>
+                  <th class="pb-2">Код счёта / Статья учёта</th>
+                  <th class="pb-2">Тип операции</th>
+                  <th class="pb-2">Расчёт / Основание</th>
+                  <th class="pb-2 text-right">Сумма (₸)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                <tr class="bg-emerald-50/40">
+                  <td class="py-3 font-extrabold text-stone-900">6010 • Выручка безналичная (Kaspi QR / Карты)</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">ДОХОД (+)</span></td>
+                  <td class="py-3 text-stone-500">${cardOrders.length} чеков по эквайрингу</td>
+                  <td class="py-3 text-right font-black text-emerald-700">+${fmt(cardRevenue)}</td>
+                </tr>
+                <tr class="bg-emerald-50/40">
+                  <td class="py-3 font-extrabold text-stone-900">1010 • Выручка наличными в кассу (POS / Курьеры)</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">ДОХОД (+)</span></td>
+                  <td class="py-3 text-stone-500">${cashOrders.length} наличных чеков</td>
+                  <td class="py-3 text-right font-black text-emerald-700">+${fmt(cashRevenue)}</td>
+                </tr>
+                <tr>
+                  <td class="py-3 font-bold text-stone-900">7010 • Себестоимость продуктов (Food Cost / Сырьё)</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">РАСХОД (-)</span></td>
+                  <td class="py-3 text-stone-500">32% по тех. картам блюд (мясо, рис, овощи)</td>
+                  <td class="py-3 text-right font-extrabold text-rose-600">-${fmt(a.foodCostSpent)}</td>
+                </tr>
+                <tr>
+                  <td class="py-3 font-bold text-stone-900">3350 • Фонд оплаты труда (Зарплата + Премии)</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">РАСХОД (-)</span></td>
+                  <td class="py-3 text-stone-500">Штат: ${state.staff.length} сотрудников по табелю смен</td>
+                  <td class="py-3 text-right font-extrabold text-rose-600">-${fmt(a.payrollCost)}</td>
+                </tr>
+                <tr>
+                  <td class="py-3 font-bold text-stone-900">7210 • Упаковка доставки, саксаул и хоз. расходники</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">РАСХОД (-)</span></td>
+                  <td class="py-3 text-stone-500">8% от оборота (ланч-боксы, пакеты, уголь)</td>
+                  <td class="py-3 text-right font-extrabold text-rose-600">-${fmt(a.operatingCost)}</td>
+                </tr>
+                <tr>
+                  <td class="py-3 font-bold text-stone-900">7110 • Комиссия банка за эквайринг (1.9%)</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">РАСХОД (-)</span></td>
+                  <td class="py-3 text-stone-500">1.9% от безналичного оборота (${fmt(cardRevenue)})</td>
+                  <td class="py-3 text-right font-extrabold text-rose-600">-${fmt(acquiringFee)}</td>
+                </tr>
+                <tr>
+                  <td class="py-3 font-bold text-stone-900">3110 • Налог по упрощённой декларации РК (3%)</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">НАЛОГ (-)</span></td>
+                  <td class="py-3 text-stone-500">ИПН + Соц. налог (3% с выручки)</td>
+                  <td class="py-3 text-right font-extrabold text-rose-600">-${fmt(simplifiedTax)}</td>
+                </tr>
+                <tr class="bg-stone-900 text-white">
+                  <td class="py-3.5 px-3 font-black rounded-l-xl">ИТОГО ОПЕРАЦИОННЫЙ БАЛАНС (ДО АРЕНДЫ)</td>
+                  <td class="py-3.5 font-bold text-orange-300">САЛЬДО</td>
+                  <td class="py-3.5 text-stone-300">Маржа после налогов и эквайринга</td>
+                  <td class="py-3.5 px-3 text-right font-black text-base text-emerald-400 rounded-r-xl">${fmt(a.netProfit - acquiringFee - simplifiedTax)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="lg:col-span-5 space-y-6">
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-stone-200/80">
+              <h3 class="font-extrabold text-base mb-3">🏦 Структура выручки по каналам оплаты</h3>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200">
+                  <div class="text-[11px] font-bold text-emerald-800">Безнал (Kaspi QR / Карты)</div>
+                  <div class="text-xl font-black text-emerald-900 mt-1">${fmt(cardRevenue)}</div>
+                  <div class="text-[11px] text-emerald-700 mt-0.5">${cardOrders.length} чеков</div>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-amber-50 border border-amber-200">
+                  <div class="text-[11px] font-bold text-amber-800">Касса Наличные</div>
+                  <div class="text-xl font-black text-amber-900 mt-1">${fmt(cashRevenue)}</div>
+                  <div class="text-[11px] text-amber-700 mt-0.5">${cashOrders.length} чеков</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-stone-200/80">
+              <h3 class="font-extrabold text-base mb-3">📦 Бухгалтерская оценка склада и ФОТ</h3>
+              <div class="space-y-2.5 text-xs">
+                <div class="flex justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <span class="font-semibold text-stone-600">Балансовая стоимость продуктов на складе:</span>
+                  <b class="text-stone-900">${fmt(a.warehouseValue)}</b>
+                </div>
+                <div class="flex justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <span class="font-semibold text-stone-600">Месячный фонд оплаты труда (${state.staff.length} сотр.):</span>
+                  <b class="text-stone-900">${fmt(a.monthlyPayroll)}</b>
+                </div>
+                <div class="flex justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <span class="font-semibold text-stone-600">Аренда помещения и комм. услуги (${a.periodLabel}):</span>
+                  <b class="text-rose-600">-${fmt(rentAndUtilities)}</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       `;
     }
 
